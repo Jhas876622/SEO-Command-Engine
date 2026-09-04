@@ -273,8 +273,8 @@ OUTPUT_DIR = Path(__file__).parent / "outputs"
 ### Install
 
 ```bash
-git clone https://github.com/Jhas876622/seo-command-center
-cd seo-command-center
+git clone https://github.com/Jhas876622/SEO-Command-Engine.git
+cd SEO-Command-Engine
 pip install -r requirements.txt
 
 # Optional: Ollama for AI-powered title rewrites
