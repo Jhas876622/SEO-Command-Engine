@@ -88,33 +88,6 @@ function addIssue(i) {
   animateValue("c-med", parseInt($("c-med").textContent || 0), totals.Medium, 300);
   animateValue("c-low", parseInt($("c-low").textContent || 0), totals.Low, 300);
 }
-function handle({ event, data }) {
-  if (event === "snapshot") {
-    if (data.site) { $("meta").textContent = "· " + data.site; $("urls").textContent = (data.urls||0) + " URLs"; }
-    setChecks(data.checks || []);
-    (data.issues || []).forEach(addIssue);
-    if (data.health_score !== undefined) updateGauge(data.health_score);
-  } else if (event === "loaded") {
-    $("meta").textContent = "· " + data.site; $("urls").textContent = data.urls + " URLs";
-    log(`[${new Date().toLocaleTimeString()}] Loaded ${data.urls} URLs from ${data.site}`); $("tbody").innerHTML = "";
-    totals = { High:0, Medium:0, Low:0, total:0 };
-    setChecks([]);
-    updateGauge(0);
-  } else if (event === "checks") { setChecks(data.checks || []); }
-  else if (event === "progress") {
-    updateCheck(data);
-    log(`[${new Date().toLocaleTimeString()}] Checked ${label(data.check)}: ${data.found || 0} found`);
-  }
-  else if (event === "issue") {
-    addIssue(data);
-    log(`[${new Date().toLocaleTimeString()}] Found ${data.count} × ${data.type}`);
-  }
-  else if (event === "summary") {
-    log(`[${new Date().toLocaleTimeString()}] Audit complete: ${data.total_issues} issue types`);
-  }
-  else if (event === "score") {
-    updateGauge(data.score);
-  }
 function renderFixes(titles) {
   const ftb = $("fixes-tbody");
   const btn = $("export-fixes-btn");
