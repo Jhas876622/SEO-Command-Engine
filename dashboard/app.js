@@ -108,6 +108,27 @@ function renderFixes(titles) {
   if (btn) btn.style.display = "inline-block";
 }
 
+function showToast(msg, type = "info", duration = 8000) {
+  const toast = $("toast-banner");
+  if (!toast) return;
+  toast.className = `toast-banner ${type}`;
+  toast.innerHTML = `<span>${msg}</span><button class="close-btn" onclick="this.parentElement.style.display='none'">✕</button>`;
+  toast.style.display = "flex";
+  if (duration > 0) {
+    setTimeout(() => {
+      if (toast.innerHTML.includes(msg)) toast.style.display = "none";
+    }, duration);
+  }
+}
+
+function resetUrlBtn() {
+  const ubtn = $("url-btn");
+  if (ubtn) {
+    ubtn.disabled = false;
+    ubtn.innerText = "🌐 Audit URL";
+  }
+}
+
 function handle({ event, data }) {
   if (event === "snapshot") {
     if (data.site) { $("meta").textContent = "· " + data.site; $("urls").textContent = (data.urls||0) + " URLs"; }
@@ -133,6 +154,13 @@ function handle({ event, data }) {
   }
   else if (event === "summary") {
     log(`[${new Date().toLocaleTimeString()}] Audit complete: ${data.total_issues} issue types`);
+    showToast(`✅ Audit complete! ${data.total_issues} issue types analyzed.`, "success", 7000);
+    resetUrlBtn();
+  }
+  else if (event === "error") {
+    showToast(`⛔ ${data.message || data.title || "Audit error occurred"}`, "error", 12000);
+    log(`[${new Date().toLocaleTimeString()}] ERROR: ${data.message || data.title}`);
+    resetUrlBtn();
   }
   else if (event === "score") {
     updateGauge(data.score);
@@ -146,7 +174,11 @@ function handle({ event, data }) {
     renderFixes(data.titles || []);
     log(`[${new Date().toLocaleTimeString()}] Fixes ready: ${(data.titles||[]).length} titles, ${(data.redirect_map||[]).length} redirects`);
   }
-  else if (event === "exported") { $("export").innerHTML = "<b>report.html written ✓</b><br><span style='color:#c8c5be;font-size:12px'>Open or email outputs/report.html to the client.</span>"; }
+  else if (event === "exported") {
+    $("export").innerHTML = "<b>report.html written ✓</b><br><span style='color:#c8c5be;font-size:12px'>Open or email outputs/report.html to the client.</span>";
+    showToast(`🎉 Report generated successfully! Check report.html`, "success", 8000);
+    resetUrlBtn();
+  }
   else if (event === "saved") {
     log(`[${new Date().toLocaleTimeString()}] report.json saved`);
   }
@@ -161,6 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const file = e.target.files[0];
       if (!file) return;
       log(`[${new Date().toLocaleTimeString()}] Uploading ${file.name}...`);
+      showToast(`📁 Processing CSV file: ${file.name}... Please wait a few seconds.`, "info", 5000);
       const fd = new FormData();
       fd.append("file", file);
       fetch("/upload", { method: "POST", body: fd })
@@ -176,7 +209,12 @@ document.addEventListener("DOMContentLoaded", () => {
     ubtn.addEventListener("click", () => {
       const url = uinput.value.trim();
       if (!url) return alert("Please enter a website URL (e.g. https://example.com)");
+      
+      ubtn.disabled = true;
+      ubtn.innerText = "⏳ Auditing...";
+      showToast(`🔍 Auditing in progress for ${url}! Please wait 10-15 seconds for results...`, "info", 10000);
       log(`[${new Date().toLocaleTimeString()}] Starting live crawl for ${url}...`);
+      
       fetch("/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,7 +222,11 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(res => res.json())
       .then(d => log(`[${new Date().toLocaleTimeString()}] ${d.message || "Crawl started"}`))
-      .catch(err => log(`[${new Date().toLocaleTimeString()}] Crawl error: ${err}`));
+      .catch(err => {
+        log(`[${new Date().toLocaleTimeString()}] Crawl error: ${err}`);
+        showToast(`⛔ Connection error starting audit: ${err}`, "error", 8000);
+        resetUrlBtn();
+      });
     });
   }
 

@@ -34,8 +34,14 @@ th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)
 .btn-sm:hover{opacity:0.9}
 .editable-cell{background:rgba(255,255,255,0.05);padding:4px 6px;border-radius:4px;outline:none}
 .editable-cell:focus{background:rgba(52,152,219,0.2);border:1px solid var(--blue)}
+.toast-banner{margin:14px 22px 0;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3)}
+.toast-banner.info{background:rgba(52,152,219,0.15);border:1px solid var(--blue);color:#64b5f6}
+.toast-banner.error{background:rgba(255,77,77,0.15);border:1px solid var(--red);color:#ff8080}
+.toast-banner.success{background:rgba(46,204,113,0.15);border:1px solid var(--green);color:#81c784}
+.toast-banner .close-btn{cursor:pointer;opacity:0.7;font-size:16px;background:none;border:none;color:inherit;padding:0;line-height:1}
+.toast-banner .close-btn:hover{opacity:1}
 @media print {
-  header, .url-bar, .upload-btn, #print-btn, #export-fixes-btn { display: none !important; }
+  header, .url-bar, .upload-btn, #print-btn, #export-fixes-btn, .toast-banner { display: none !important; }
   body { background: #fff !important; color: #000 !important; }
   .card { border: 1px solid #ddd !important; background: #fff !important; color: #000 !important; }
   th, td { border-bottom: 1px solid #eee !important; color: #000 !important; }
@@ -53,6 +59,7 @@ th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)
   <button class="upload-btn" id="print-btn" style="background:var(--card);color:var(--paper);border:1px solid var(--line)">🖨️ Print PDF</button>
   <div class="pill" id="urls">0 URLs</div>
 </div></header>
+<div id="toast-banner" class="toast-banner" style="display:none"></div>
 <div class="grid">
  <div class="card" style="display:flex;flex-direction:column;gap:16px">
   <div class="score-container">

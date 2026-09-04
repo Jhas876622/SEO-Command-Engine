@@ -479,6 +479,15 @@ class H(BaseHTTPRequestHandler):
                         _emit("progress", {"stage": "crawling", "check": f"Crawling {target_url}...", "found": 0})
                         from seo.crawler import crawl_site, export_crawled_csv
                         rows = crawl_site(target_url, max_pages=30)
+                        
+                        valid_rows = [r for r in rows if r.get('Status Code') == 200]
+                        blocked_rows = [r for r in rows if r.get('Status Code') in (403, 401, 503, 0)]
+                        
+                        if not rows or (not valid_rows and blocked_rows):
+                            err_msg = f"Cannot audit {target_url}: The website is protected by Cloudflare/Bot security or firewalls (HTTP 403/503). Please try another site (e.g. books.toscrape.com) or upload a CSV export!"
+                            _emit("error", {"title": "Security / Cloudflare Blocked", "message": err_msg})
+                            return
+
                         csv_path = upload_dir / "internal_all.csv"
                         export_crawled_csv(rows, str(csv_path))
 
@@ -500,7 +509,7 @@ class H(BaseHTTPRequestHandler):
                         seo_report()
                         seo_export()
                     except Exception as e:
-                        _emit("progress", {"check": f"error: {e}", "found": 0})
+                        _emit("error", {"title": "Audit Error", "message": f"Audit failed: {str(e)}"})
 
                 threading.Thread(target=_run_live_crawl_audit, daemon=True).start()
                 self._send(200, json.dumps({"status": "crawling", "message": f"Crawling and auditing {target_url}..."}), "application/json")
