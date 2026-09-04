@@ -28,9 +28,31 @@ MODEL = os.environ.get("RADAR_MODEL", "qwen3.5:9b")
 import sys
 sys.path.insert(0, str(ROOT))
 from seo import detector  # noqa: E402
+from seo.db import init_db, save_audit, get_latest_audit, get_audit_history  # noqa: E402
+from seo.ratelimit import limiter, get_client_ip  # noqa: E402
 
-RUN = {"site": None, "urls": 0, "issues": [], "summary": None, "status": "idle",
-       "checks": [], "score_breakdown": {"score": 100, "deductions": []}}
+# Initialize SQLite database schema
+init_db()
+
+# Restore most recent audit run if present so server restart retains dashboard state
+_last_run = get_latest_audit()
+if _last_run:
+    RUN = {
+        "site": _last_run.get("site"),
+        "urls": _last_run.get("urls", 0),
+        "issues": _last_run.get("issues", []),
+        "summary": _last_run.get("summary"),
+        "status": "done",
+        "checks": [{"check": name, "found": 0, "done": True} for name in getattr(detector, "DETECTOR_CHECKS", [])],
+        "health_score": _last_run.get("health_score", 100),
+        "score_breakdown": _last_run.get("score_breakdown", {"score": 100, "deductions": []}),
+        "fixes": _last_run.get("fixes", {}),
+        "recommendations": _last_run.get("recommendations", [])
+    }
+else:
+    RUN = {"site": None, "urls": 0, "issues": [], "summary": None, "status": "idle",
+           "checks": [], "score_breakdown": {"score": 100, "deductions": []}}
+
 _subs: list[queue.Queue] = []
 _lock = threading.Lock()
 
@@ -137,12 +159,20 @@ def seo_recommend(recommendations: list) -> dict:
     _emit("recommendations", {"recommendations": recommendations}); return {"count": len(recommendations)}
 
 
-# Write outputs/report.json.
+# Write outputs/report.json and persist to SQLite.
 def seo_report() -> dict:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     p = OUTPUT_DIR / "report.json"
-    json.dump(_report_obj(), open(p, "w", encoding="utf-8"), indent=2)
-    RUN["status"] = "done"; _emit("saved", {"path": str(p)}); return {"path": str(p)}
+    rep = _report_obj()
+    json.dump(rep, open(p, "w", encoding="utf-8"), indent=2)
+    with _lock:
+        RUN["status"] = "done"
+    try:
+        save_audit(rep)
+    except Exception as e:
+        print(f"[seo] SQLite save note: {e}", flush=True)
+    _emit("saved", {"path": str(p)})
+    return {"path": str(p)}
 
 
 # Read report.json and write the client-facing HTML report.
@@ -479,32 +509,46 @@ class H(BaseHTTPRequestHandler):
             _trigger_demo_audit()
             self._send(200, json.dumps({"status": "demo_started", "message": "Demo audit running"}), "application/json")
         elif self.path == "/history":
-            hist_dir = ROOT / "history"
-            history_list = []
-            if hist_dir.exists():
-                for p in sorted(hist_dir.glob("*.json")):
-                    try:
-                        with open(p, encoding="utf-8") as f:
-                            d = json.load(f)
-                            history_list.append({
-                                "filename": p.name,
-                                "site": d.get("site"),
-                                "health_score": d.get("health_score", 100),
-                                "urls_crawled": d.get("urls_crawled", 0),
-                                "total_issues": (d.get("summary") or {}).get("total_issues", 0)
-                            })
-                    except Exception: pass
+            try:
+                history_list = get_audit_history(limit=50)
+            except Exception:
+                history_list = []
             self._send(200, json.dumps({"history": history_list}), "application/json")
         else: self._send(404, "not found")
 
     # Handle file upload, demo trigger, and live crawl POST requests.
     def do_POST(self):
+        client_ip = get_client_ip(dict(self.headers), self.client_address)
+
         if self.path == "/demo":
+            allowed, retry_after, _ = limiter.check(client_ip, category="demo")
+            if not allowed:
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Retry-After", str(retry_after))
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"Demo rate limit reached for {client_ip}. Please wait {retry_after}s.",
+                    "retry_after": retry_after
+                }).encode())
+                return
             _trigger_demo_audit()
             self._send(200, json.dumps({"status": "demo_started", "message": "Demo audit simulation started"}), "application/json")
             return
 
         if self.path == "/crawl":
+            allowed, retry_after, remaining = limiter.check(client_ip, category="crawl")
+            if not allowed:
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Retry-After", str(retry_after))
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"Crawl rate limit reached for {client_ip} (5 crawls / 10m allowed). Please wait {retry_after}s.",
+                    "retry_after": retry_after
+                }).encode())
+                return
+
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length).decode("utf-8")
@@ -576,6 +620,17 @@ class H(BaseHTTPRequestHandler):
                 self._send(500, json.dumps({"error": str(e)}), "application/json")
 
         elif self.path == "/upload":
+            allowed, retry_after, _ = limiter.check(client_ip, category="upload")
+            if not allowed:
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Retry-After", str(retry_after))
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": f"Upload rate limit reached for {client_ip}. Please wait {retry_after}s.",
+                    "retry_after": retry_after
+                }).encode())
+                return
             try:
                 with _lock:
                     if RUN.get("status") == "running":

@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 uploads/
+*.db
 .env
 .DS_Store
 .idea/

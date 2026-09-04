@@ -98,6 +98,9 @@ class AdvancedHTMLParser(HTMLParser):
             self.text_content.append(data.strip())
 
 
+SimpleHTMLParser = AdvancedHTMLParser
+
+
 def _fetch_single_page(url: str, user_agent: str, timeout: float = 6.0) -> dict:
     t0 = time.time()
     status_code = 200
