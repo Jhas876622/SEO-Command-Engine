@@ -28,12 +28,29 @@ th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)
 .badge-fixes{display:inline-flex;align-items:center;gap:6px;font-size:11px;background:var(--blue);color:#fff;padding:4px 10px;border-radius:999px;margin-left:10px;display:none}
 .upload-btn{background:var(--green);color:#020617;font-weight:700;font-size:12px;padding:6px 14px;border-radius:6px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px}
 .upload-btn:hover{opacity:0.9}
+.url-bar{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);padding:3px 6px;border-radius:6px}
+.url-bar input{background:transparent;border:none;color:var(--paper);font-size:12px;outline:none;width:180px}
+.btn-sm{background:var(--blue);color:#fff;font-weight:700;font-size:11px;padding:5px 10px;border-radius:4px;border:none;cursor:pointer}
+.btn-sm:hover{opacity:0.9}
+.editable-cell{background:rgba(255,255,255,0.05);padding:4px 6px;border-radius:4px;outline:none}
+.editable-cell:focus{background:rgba(52,152,219,0.2);border:1px solid var(--blue)}
+@media print {
+  header, .url-bar, .upload-btn, #print-btn, #export-fixes-btn { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .card { border: 1px solid #ddd !important; background: #fff !important; color: #000 !important; }
+  th, td { border-bottom: 1px solid #eee !important; color: #000 !important; }
+}
 </style></head><body>
 <header><h1><span class="dot"></span>SEO Command Center <span class="pill" id="meta">idle</span>
 <a href="https://github.com/Jhas876622" target="_blank" style="text-decoration:none;color:inherit"><span class="pill">by Satyam Kumar Jha</span></a>
 <span class="badge-fixes" id="fix-badge">Fixes Ready: 0</span></h1>
 <div style="display:flex;align-items:center;gap:10px">
-  <label class="upload-btn">📁 Upload CSV Export <input type="file" id="file-input" accept=".csv" style="display:none"></label>
+  <div class="url-bar">
+    <input type="text" id="url-input" placeholder="https://example.com">
+    <button class="btn-sm" id="url-btn">🌐 Audit URL</button>
+  </div>
+  <label class="upload-btn">📁 Upload CSV <input type="file" id="file-input" accept=".csv" style="display:none"></label>
+  <button class="upload-btn" id="print-btn" style="background:var(--card);color:var(--paper);border:1px solid var(--line)">🖨️ Print PDF</button>
   <div class="pill" id="urls">0 URLs</div>
 </div></header>
 <div class="grid">
@@ -49,7 +66,17 @@ th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)
   <div style="overflow-x:auto"><table id="tbl"><thead><tr><th>Severity</th><th>Issue</th><th>URLs</th></tr></thead>
   <tbody id="tbody"><tr><td colspan="3" class="empty">Waiting for the audit to run…</td></tr></tbody></table></div></div>
 </div>
-<div class="card" style="display:flex;flex-direction:column;gap:16px">
+<div class="grid" style="padding-top:0">
+ <div class="card" style="grid-column: 1 / -1">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h2>Interactive Title Fix Editor (Click cell to edit)</h2>
+    <button class="btn-sm" id="export-fixes-btn" style="display:none">📥 Export Fixes CSV</button>
+  </div>
+  <div style="overflow-x:auto"><table><thead><tr><th>URL</th><th>Current Title</th><th>Recommended Title (Editable)</th></tr></thead>
+  <tbody id="fixes-tbody"><tr><td colspan="3" class="empty">No AI title fixes generated yet. Run an audit to generate title rewrites.</td></tr></tbody></table></div>
+ </div>
+</div>
+<div class="card" style="display:flex;flex-direction:column;gap:16px;margin: 0 22px 22px">
  <div class="card"><h2>Rulebook checklist</h2><div id="checklist"><div class="empty">Waiting for detector checks…</div></div></div>
  <div class="card" style="margin-top:0"><h2>Run log</h2><div id="log"><div class="empty">Pipeline steps stream here.</div></div></div>
  <div class="card" style="margin-top:0"><h2>Deliverable</h2><div id="export" class="empty">report.html will be ready when the run finishes.</div></div>

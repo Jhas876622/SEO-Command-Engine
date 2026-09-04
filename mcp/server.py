@@ -439,19 +439,80 @@ class H(BaseHTTPRequestHandler):
             finally:
                 with _lock:
                     if q in _subs: _subs.remove(q)
+        elif self.path == "/history":
+            hist_dir = ROOT / "history"
+            history_list = []
+            if hist_dir.exists():
+                for p in sorted(hist_dir.glob("*.json")):
+                    try:
+                        with open(p, encoding="utf-8") as f:
+                            d = json.load(f)
+                            history_list.append({
+                                "filename": p.name,
+                                "site": d.get("site"),
+                                "health_score": d.get("health_score", 100),
+                                "urls_crawled": d.get("urls_crawled", 0),
+                                "total_issues": (d.get("summary") or {}).get("total_issues", 0)
+                            })
+                    except Exception: pass
+            self._send(200, json.dumps({"history": history_list}), "application/json")
         else: self._send(404, "not found")
 
-    # Handle file upload POST requests to run audits directly from the browser.
+    # Handle file upload and live crawl POST requests.
     def do_POST(self):
-        if self.path == "/upload":
+        if self.path == "/crawl":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length).decode("utf-8")
+                req_data = json.loads(body) if body else {}
+                target_url = req_data.get("url", "").strip()
+                if not target_url:
+                    self._send(400, json.dumps({"error": "Missing URL parameter"}), "application/json")
+                    return
+
+                upload_dir = ROOT / "uploads" / "crawl"
+                upload_dir.mkdir(parents=True, exist_ok=True)
+
+                def _run_live_crawl_audit():
+                    try:
+                        _emit("progress", {"stage": "crawling", "check": f"Crawling {target_url}...", "found": 0})
+                        from seo.crawler import crawl_site, export_crawled_csv
+                        rows = crawl_site(target_url, max_pages=30)
+                        csv_path = upload_dir / "internal_all.csv"
+                        export_crawled_csv(rows, str(csv_path))
+
+                        seo_load(str(upload_dir), site_name=target_url)
+                        seo_detect()
+                        from agents.fixer import generate_redirect_map, generate_titles_batch
+                        import pandas as pd
+                        df_df = pd.DataFrame(rows)
+                        redirect_map = generate_redirect_map(df_df)
+                        contexts = []
+                        for r in rows[:10]:
+                            if r.get('Title 1 Length', 0) > 60 or not r.get('Title 1'):
+                                contexts.append({"url": r['Address'], "old": r['Title 1'], "h1": r['H1-1'], "site": target_url})
+                        title_fixes = generate_titles_batch(contexts, site_name=target_url, use_ollama=False)
+                        seo_set_fixes(titles=title_fixes, redirect_map=redirect_map)
+                        issues = sorted(RUN["issues"], key=lambda x: ({"High": 0, "Medium": 1, "Low": 2}.get(x["severity"], 3), -int(x.get("count") or 0)))
+                        recs = [f"Fix {i['type'].replace('_', ' ')} on {i['count']} URL(s): {_business_impact(i)}" for i in issues[:5]]
+                        seo_recommend(recs or ["Audit complete."])
+                        seo_report()
+                        seo_export()
+                    except Exception as e:
+                        _emit("progress", {"check": f"error: {e}", "found": 0})
+
+                threading.Thread(target=_run_live_crawl_audit, daemon=True).start()
+                self._send(200, json.dumps({"status": "crawling", "message": f"Crawling and auditing {target_url}..."}), "application/json")
+            except Exception as e:
+                self._send(500, json.dumps({"error": str(e)}), "application/json")
+
+        elif self.path == "/upload":
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length)
-                # Parse raw CSV or multipart payload
                 content_type = self.headers.get("Content-Type", "")
                 csv_data = body
                 if "multipart/form-data" in content_type:
-                    # Extract file content from multipart payload
                     boundary = content_type.split("boundary=")[-1].encode()
                     parts = body.split(b"--" + boundary)
                     for part in parts:
@@ -465,12 +526,10 @@ class H(BaseHTTPRequestHandler):
                 with open(csv_path, "wb") as f:
                     f.write(csv_data)
 
-                # Run audit asynchronously so SSE updates stream cleanly
                 def _run_upload_audit():
                     try:
                         seo_load(str(upload_dir))
                         seo_detect()
-                        # Run fixes with fallback titles
                         from agents.fixer import generate_redirect_map, generate_titles_batch
                         df = detector.load_rows(str(upload_dir))
                         import pandas as pd
