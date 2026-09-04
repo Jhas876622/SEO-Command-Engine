@@ -46,8 +46,18 @@ const CIRCUMFERENCE = 2 * Math.PI * 65; // r=65
 function updateGauge(score) {
   const arc = $('gauge-arc');
   const txt = $('gauge-score');
+  const lbl = $('gauge-label');
   if (!arc || !txt) return;
 
+  if (score === null || score === undefined || isNaN(score)) {
+    arc.style.strokeDashoffset = CIRCUMFERENCE;
+    arc.style.stroke = '#2a2a38';
+    txt.textContent = '--';
+    if (lbl) lbl.textContent = 'Ready';
+    return;
+  }
+
+  if (lbl) lbl.textContent = 'Health Score';
   const pct = Math.max(0, Math.min(score, 100)) / 100;
   const offset = CIRCUMFERENCE - pct * CIRCUMFERENCE;
   arc.style.strokeDasharray = CIRCUMFERENCE;
@@ -211,7 +221,9 @@ function resetTotals() {
   totals = { High: 0, Medium: 0, Low: 0, total: 0 };
   ['c-total','c-high','c-med','c-low'].forEach(id => { const el = $(id); if (el) el.textContent = '0'; });
   updateChart();
-  updateGauge(0);
+  updateGauge(null);
+  const actions = $('export-actions'); if (actions) actions.style.display = 'none';
+  const msg = $('export-msg'); if (msg) msg.textContent = 'Audit report will be generated when the run finishes.';
 }
 
 /* ─── SSE Event Handler ─── */
@@ -223,8 +235,14 @@ function handle({ event, data }) {
     }
     setChecks(data.checks || []);
     (data.issues || []).forEach(addIssue);
-    if (data.health_score !== undefined) updateGauge(data.health_score);
+    if (data.health_score !== undefined && data.health_score !== null) updateGauge(data.health_score);
     if (data.fixes && data.fixes.titles) renderFixes(data.fixes.titles);
+    if (data.status === 'done') {
+      const msg = $('export-msg');
+      const actions = $('export-actions');
+      if (msg) msg.innerHTML = '<strong style="color:var(--green)">✓ Audit Deliverables Ready!</strong> View the report or download files below:';
+      if (actions) actions.style.display = 'flex';
+    }
 
   } else if (event === 'loaded') {
     const m = $('meta'), u = $('urls'), tb = $('tbody');
@@ -271,9 +289,11 @@ function handle({ event, data }) {
     log(`Fixes ready — ${(data.titles||[]).length} title rewrites, ${(data.redirect_map||[]).length} redirects`, 'success');
 
   } else if (event === 'exported') {
-    const exp = $('export');
-    if (exp) exp.innerHTML = '<b>✓ report.html generated!</b><br><span style="color:var(--mute);font-size:12px">Download or email outputs/report.html to your client.</span>';
-    showToast('🎉 Client report is ready! Check outputs/report.html', 'success', 8000);
+    const msg = $('export-msg');
+    const actions = $('export-actions');
+    if (msg) msg.innerHTML = '<strong style="color:var(--green)">✓ Audit Deliverables Ready!</strong> Open the report or download files below:';
+    if (actions) actions.style.display = 'flex';
+    showToast('🎉 Client report is ready! Click "Open HTML Report" to view.', 'success', 8000);
     setAuditBtnLoading(false);
 
   } else if (event === 'saved') {
@@ -285,6 +305,29 @@ function handle({ event, data }) {
 const es = new EventSource('/events');
 es.onmessage = (m) => { try { handle(JSON.parse(m.data)); } catch (e) {} };
 es.onerror = () => { /* silently reconnect */ };
+
+/* ─── Demo Mode ─── */
+function startDemoAudit() {
+  showCockpit();
+  setAuditBtnLoading(true);
+  resetTotals();
+  setChecks([]);
+  renderFixes([]);
+  const tb = $('tbody'); if (tb) tb.innerHTML = '<tr><td colspan="3" class="empty">Streaming demo audit showcase...</td></tr>';
+  const m = $('meta'); if (m) m.textContent = '· Demo Showcase';
+  log('Starting Instant Demo Audit (NMG Technologies)...', 'info');
+  showToast('⚡ Demo Mode active: Streaming full technical audit simulation...', 'info', 6000);
+
+  fetch('/demo', { method: 'POST' })
+    .then(res => res.json())
+    .then(d => {
+      log(d.message || 'Demo started', 'info');
+    })
+    .catch(err => {
+      log('Demo error: ' + err, 'error');
+      setAuditBtnLoading(false);
+    });
+}
 
 /* ─── Start Audit (shared) ─── */
 function startUrlAudit(url) {
@@ -306,13 +349,13 @@ function startUrlAudit(url) {
   const cockpitInput = $('url-input');
   if (cockpitInput) cockpitInput.value = url;
 
-  showToast(`🔍 Crawling ${url}... Please wait 15–30 seconds for results to stream in.`, 'info', 14000);
+  showToast(`🔍 Fast crawling ${url}... Please wait 10–25 seconds for results to stream in.`, 'info', 14000);
   log('Starting live crawl for ' + url, 'info');
 
   fetch('/crawl', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
+    body: JSON.stringify({ url, max_pages: 50 })
   })
   .then(res => res.json())
   .then(d => log(d.message || 'Crawl started', 'info'))
@@ -351,6 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
     landingInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startUrlAudit(landingInput.value.trim()); });
   }
 
+  // ── Landing page demo button ──
+  const landingDemo = $('landing-demo-btn');
+  if (landingDemo) {
+    landingDemo.addEventListener('click', startDemoAudit);
+  }
+
   // ── Landing page file upload ──
   const landingFile = $('landing-file');
   if (landingFile) {
@@ -363,6 +412,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (cockpitBtn && cockpitInput) {
     cockpitBtn.addEventListener('click', () => startUrlAudit(cockpitInput.value.trim()));
     cockpitInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') startUrlAudit(cockpitInput.value.trim()); });
+  }
+
+  // ── Cockpit demo button ──
+  const cockpitDemo = $('demo-btn');
+  if (cockpitDemo) {
+    cockpitDemo.addEventListener('click', startDemoAudit);
   }
 
   // ── Cockpit CSV upload ──

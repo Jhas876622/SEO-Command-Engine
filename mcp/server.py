@@ -207,6 +207,10 @@ def _score_reason(issue):
         "server_error": "server errors affecting {count} URLs block users and crawlers",
         "missing_meta_description": "missing meta descriptions affecting {count} pages reduce snippet control",
         "slow_page": "slow pages affecting {count} URLs hurt user experience and conversions",
+        "missing_image_alt": "missing image alt text affecting {count} pages damages accessibility and image search rankings",
+        "missing_robots_txt": "missing or inaccessible robots.txt may cause crawl inefficiency",
+        "missing_sitemap_xml": "missing XML sitemap delays search engine discovery of new pages",
+        "canonical_mismatch": "canonical URL mismatches on {count} pages cause indexation confusion and split rank authority",
     }
     count = int(issue.get("count") or 0)
     template = labels.get(issue.get("type"), "{issue} affecting {count} URL(s) needs review")
@@ -262,6 +266,10 @@ def _business_impact(issue):
         "missing_meta_description": "Missing descriptions reduce control over search snippets and can lower click-through.",
         "duplicate_meta_description": "Duplicate descriptions make similar pages harder to differentiate in search.",
         "missing_h1": "Missing H1s weaken page structure and make the core topic less clear.",
+        "missing_image_alt": "Alt text helps search engines index imagery and provides screen reader accessibility.",
+        "missing_robots_txt": "A valid robots.txt prevents search engines from wasting crawl budget on irrelevant paths.",
+        "missing_sitemap_xml": "XML sitemaps ensure all canonical pages are discovered and indexed promptly.",
+        "canonical_mismatch": "Canonical mismatches confuse search engines about the authoritative version of the page.",
         "redirect": "Redirects should be reviewed so users and crawlers reach final destinations efficiently.",
         "orphan_page": "Orphan pages are difficult for users and crawlers to discover through internal navigation.",
         "non_indexable_but_linked": "Internal links to non-indexable URLs can send authority toward pages that cannot rank.",
@@ -414,7 +422,7 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code); self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "no-cache"); self.end_headers()
         self.wfile.write(body.encode() if isinstance(body, str) else body)
-    # Serve dashboard assets, state snapshots, and the SSE stream.
+    # Serve dashboard assets, state snapshots, deliverables, and the SSE stream.
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             p = os.path.join(DASH_DIR, "index.html")
@@ -423,14 +431,17 @@ class H(BaseHTTPRequestHandler):
             p = os.path.join(DASH_DIR, "app.js")
             self._send(200, open(p, encoding="utf-8").read() if os.path.exists(p) else "", "application/javascript")
         elif self.path == "/state":
-            self._send(200, json.dumps({k: v for k, v in RUN.items() if k != "rows"}), "application/json")
+            with _lock:
+                snap = {k: v for k, v in RUN.items() if k != "rows"}
+            self._send(200, json.dumps(snap), "application/json")
         elif self.path == "/events":
             self.send_response(200); self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache"); self.end_headers()
             q = queue.Queue()
             with _lock: _subs.append(q)
             try:
-                snap = {k: v for k, v in RUN.items() if k != "rows"}
+                with _lock:
+                    snap = {k: v for k, v in RUN.items() if k != "rows"}
                 self.wfile.write(f"data: {json.dumps({'event':'snapshot','data':snap})}\n\n".encode()); self.wfile.flush()
                 while True:
                     try: self.wfile.write(f"data: {q.get(timeout=15)}\n\n".encode())
@@ -440,6 +451,33 @@ class H(BaseHTTPRequestHandler):
             finally:
                 with _lock:
                     if q in _subs: _subs.remove(q)
+        elif self.path == "/report.html":
+            p = OUTPUT_DIR / "report.html"
+            if p.exists():
+                self._send(200, open(p, encoding="utf-8").read(), "text/html; charset=utf-8")
+            else:
+                self._send(404, "<h2 style='font-family:sans-serif;padding:30px'>Report not generated yet. Please run an audit or demo first!</h2>", "text/html")
+        elif self.path == "/report.json":
+            p = OUTPUT_DIR / "report.json"
+            if p.exists():
+                self._send(200, open(p, encoding="utf-8").read(), "application/json")
+            else:
+                self._send(404, json.dumps({"error": "report.json not generated yet"}), "application/json")
+        elif self.path == "/fixes.csv":
+            p = OUTPUT_DIR / "fixes.csv"
+            if p.exists():
+                self._send(200, open(p, encoding="utf-8").read(), "text/csv; charset=utf-8")
+            else:
+                self._send(404, "url,old_title,new_title\n", "text/csv")
+        elif self.path == "/redirect_map.csv":
+            p = OUTPUT_DIR / "redirect_map.csv"
+            if p.exists():
+                self._send(200, open(p, encoding="utf-8").read(), "text/csv; charset=utf-8")
+            else:
+                self._send(404, "from,to,reason\n", "text/csv")
+        elif self.path == "/demo":
+            _trigger_demo_audit()
+            self._send(200, json.dumps({"status": "demo_started", "message": "Demo audit running"}), "application/json")
         elif self.path == "/history":
             hist_dir = ROOT / "history"
             history_list = []
@@ -459,32 +497,47 @@ class H(BaseHTTPRequestHandler):
             self._send(200, json.dumps({"history": history_list}), "application/json")
         else: self._send(404, "not found")
 
-    # Handle file upload and live crawl POST requests.
+    # Handle file upload, demo trigger, and live crawl POST requests.
     def do_POST(self):
+        if self.path == "/demo":
+            _trigger_demo_audit()
+            self._send(200, json.dumps({"status": "demo_started", "message": "Demo audit simulation started"}), "application/json")
+            return
+
         if self.path == "/crawl":
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length).decode("utf-8")
                 req_data = json.loads(body) if body else {}
                 target_url = req_data.get("url", "").strip()
+                max_pages = min(150, max(10, int(req_data.get("max_pages", 40))))
+
                 if not target_url:
                     self._send(400, json.dumps({"error": "Missing URL parameter"}), "application/json")
                     return
+
+                with _lock:
+                    if RUN.get("status") == "running":
+                        self._send(429, json.dumps({"error": "An audit is already running. Please wait for it to finish."}), "application/json")
+                        return
+                    RUN["status"] = "running"
 
                 upload_dir = ROOT / "uploads" / "crawl"
                 upload_dir.mkdir(parents=True, exist_ok=True)
 
                 def _run_live_crawl_audit():
                     try:
-                        _emit("progress", {"stage": "crawling", "check": f"Crawling {target_url}...", "found": 0})
+                        _emit("progress", {"stage": "crawling", "check": f"Fast crawling {target_url} (up to {max_pages} pages)...", "found": 0})
                         from seo.crawler import crawl_site, export_crawled_csv
-                        rows = crawl_site(target_url, max_pages=30)
+                        rows = crawl_site(target_url, max_pages=max_pages, max_workers=8)
                         
                         valid_rows = [r for r in rows if r.get('Status Code') == 200]
                         blocked_rows = [r for r in rows if r.get('Status Code') in (403, 401, 503, 0)]
                         
                         if not rows or (not valid_rows and blocked_rows):
-                            err_msg = f"Cannot audit {target_url}: The website is protected by Cloudflare/Bot security or firewalls (HTTP 403/503). Please try another site (e.g. books.toscrape.com) or upload a CSV export!"
+                            with _lock:
+                                RUN["status"] = "idle"
+                            err_msg = f"Cannot audit {target_url}: The website is protected by Cloudflare/Bot security or firewalls (HTTP 403/503). Try books.toscrape.com, quotes.toscrape.com, or click 'Try Demo Audit'!"
                             _emit("error", {"title": "Security / Cloudflare Blocked", "message": err_msg})
                             return
 
@@ -498,26 +551,38 @@ class H(BaseHTTPRequestHandler):
                         df_df = pd.DataFrame(rows)
                         redirect_map = generate_redirect_map(df_df)
                         contexts = []
-                        for r in rows[:10]:
+                        for r in rows[:15]:
                             if r.get('Title 1 Length', 0) > 60 or not r.get('Title 1'):
-                                contexts.append({"url": r['Address'], "old": r['Title 1'], "h1": r['H1-1'], "site": target_url})
+                                contexts.append({"url": r.get('Address', ''), "old": r.get('Title 1', ''), "h1": r.get('H1-1', ''), "site": target_url})
                         title_fixes = generate_titles_batch(contexts, site_name=target_url, use_ollama=False)
                         seo_set_fixes(titles=title_fixes, redirect_map=redirect_map)
-                        issues = sorted(RUN["issues"], key=lambda x: ({"High": 0, "Medium": 1, "Low": 2}.get(x["severity"], 3), -int(x.get("count") or 0)))
-                        recs = [f"Fix {i['type'].replace('_', ' ')} on {i['count']} URL(s): {_business_impact(i)}" for i in issues[:5]]
+                        with _lock:
+                            curr_issues = list(RUN.get("issues", []))
+                        issues = sorted(curr_issues, key=lambda x: ({"High": 0, "Medium": 1, "Low": 2}.get(x.get("severity"), 3), -int(x.get("count") or 0)))
+                        recs = [f"Fix {i.get('type', '').replace('_', ' ')} on {i.get('count', 0)} URL(s): {_business_impact(i)}" for i in issues[:5]]
                         seo_recommend(recs or ["Audit complete."])
                         seo_report()
                         seo_export()
                     except Exception as e:
+                        with _lock:
+                            RUN["status"] = "idle"
                         _emit("error", {"title": "Audit Error", "message": f"Audit failed: {str(e)}"})
 
                 threading.Thread(target=_run_live_crawl_audit, daemon=True).start()
-                self._send(200, json.dumps({"status": "crawling", "message": f"Crawling and auditing {target_url}..."}), "application/json")
+                self._send(200, json.dumps({"status": "crawling", "message": f"Fast crawling and auditing {target_url}..."}), "application/json")
             except Exception as e:
+                with _lock:
+                    RUN["status"] = "idle"
                 self._send(500, json.dumps({"error": str(e)}), "application/json")
 
         elif self.path == "/upload":
             try:
+                with _lock:
+                    if RUN.get("status") == "running":
+                        self._send(429, json.dumps({"error": "An audit is already running. Please wait for it to finish."}), "application/json")
+                        return
+                    RUN["status"] = "running"
+
                 length = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(length)
                 content_type = self.headers.get("Content-Type", "")
@@ -540,26 +605,100 @@ class H(BaseHTTPRequestHandler):
                     try:
                         seo_load(str(upload_dir))
                         seo_detect()
-                        from agents.fixer import generate_redirect_map, generate_titles_batch
+                        from agents.fixer import generate_redirect_map
                         df = detector.load_rows(str(upload_dir))
                         import pandas as pd
                         df_df = pd.DataFrame(df)
                         redirect_map = generate_redirect_map(df_df)
                         seo_set_fixes(titles=[], redirect_map=redirect_map)
-                        issues = sorted(RUN["issues"], key=lambda x: ({"High": 0, "Medium": 1, "Low": 2}.get(x["severity"], 3), -int(x.get("count") or 0)))
-                        recs = [f"Fix {i['type'].replace('_', ' ')} on {i['count']} URL(s): {_business_impact(i)}" for i in issues[:5]]
+                        with _lock:
+                            curr_issues = list(RUN.get("issues", []))
+                        issues = sorted(curr_issues, key=lambda x: ({"High": 0, "Medium": 1, "Low": 2}.get(x.get("severity"), 3), -int(x.get("count") or 0)))
+                        recs = [f"Fix {i.get('type', '').replace('_', ' ')} on {i.get('count', 0)} URL(s): {_business_impact(i)}" for i in issues[:5]]
                         seo_recommend(recs or ["Audit complete."])
                         seo_report()
                         seo_export()
                     except Exception as e:
+                        with _lock:
+                            RUN["status"] = "idle"
                         _emit("progress", {"check": f"error: {e}", "found": 0})
 
                 threading.Thread(target=_run_upload_audit, daemon=True).start()
                 self._send(200, json.dumps({"status": "processing", "message": "Audit started"}), "application/json")
             except Exception as e:
+                with _lock:
+                    RUN["status"] = "idle"
                 self._send(500, json.dumps({"error": str(e)}), "application/json")
         else:
             self._send(404, "not found")
+
+
+# Trigger an instant, rich demo audit showing the cockpit in action.
+def _trigger_demo_audit():
+    def _run_demo():
+        try:
+            demo_file = OUTPUT_DIR / "report.json"
+            demo_obj = None
+            if demo_file.exists():
+                try:
+                    with open(demo_file, encoding="utf-8") as f:
+                        demo_obj = json.load(f)
+                except Exception:
+                    pass
+
+            site_name = (demo_obj or {}).get("site") or "NMG Technologies (Demo)"
+            urls_cnt = (demo_obj or {}).get("urls_crawled") or 456
+            demo_issues = (demo_obj or {}).get("issues") or []
+            demo_summary = (demo_obj or {}).get("summary") or {"total_issues": len(demo_issues), "by_severity": {"High": 2, "Medium": 5, "Low": 4}}
+            demo_score = (demo_obj or {}).get("health_score", 47)
+            demo_fixes = (demo_obj or {}).get("fixes") or {"titles": [], "redirect_map": []}
+            demo_recs = (demo_obj or {}).get("recommendations") or [
+                "Fix duplicate titles on 12 URLs to restore SERP uniqueness.",
+                "Resolve 6 broken links (404s) to preserve search equity.",
+                "Shorten 63 titles exceeding 60 characters to prevent SERP truncation."
+            ]
+
+            init_checks = _initial_checks()
+            with _lock:
+                RUN.update({
+                    "site": site_name, "urls": urls_cnt, "issues": [], "summary": None,
+                    "status": "running", "checks": init_checks, "health_score": demo_score,
+                    "fixes": demo_fixes, "recommendations": demo_recs
+                })
+
+            _emit("loaded", {"site": site_name, "urls": urls_cnt})
+            _emit("checks", {"checks": init_checks})
+            time.sleep(0.3)
+
+            for chk in init_checks:
+                c_name = chk["check"]
+                m_iss = next((i for i in demo_issues if i.get("type") == c_name), None)
+                f_cnt = int(m_iss.get("count") or 0) if m_iss else 0
+                _on_detector_progress({"check": c_name, "found": f_cnt})
+                time.sleep(0.035)
+
+            with _lock:
+                RUN["issues"] = demo_issues
+                RUN["summary"] = demo_summary
+
+            for iss in demo_issues:
+                _emit("issue", iss)
+                time.sleep(0.02)
+
+            _emit("score", {"score": demo_score})
+            _emit("summary", demo_summary)
+            if demo_fixes.get("titles") or demo_fixes.get("redirect_map"):
+                _emit("fixes", demo_fixes)
+            _emit("recommendations", {"recommendations": demo_recs})
+            _emit("exported", {"path": str(OUTPUT_DIR / "report.html")})
+            with _lock:
+                RUN["status"] = "done"
+        except Exception as e:
+            with _lock:
+                RUN["status"] = "idle"
+            _emit("error", {"title": "Demo Error", "message": str(e)})
+
+    threading.Thread(target=_run_demo, daemon=True).start()
 
 
 # Start the local dashboard HTTP server in a background thread.

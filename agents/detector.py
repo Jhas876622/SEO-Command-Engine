@@ -12,6 +12,10 @@ DETECTOR_CHECKS = [
     'missing_meta_description',
     'duplicate_meta_description',
     'missing_h1',
+    'missing_image_alt',
+    'missing_robots_txt',
+    'missing_sitemap_xml',
+    'canonical_mismatch',
     'redirect',
     'orphan_page',
     'non_indexable_but_linked',
@@ -96,6 +100,30 @@ def detect_all(df, progress=None):
 
     h1_200 = _str(html_200, 'H1-1').str.strip()
     _run_check(issues, progress, 'missing_h1', 'Medium', html_200[h1_200 == ''])
+
+    # Image Alt Text Detector
+    alt_col = next((c for c in ['Images Without Alt', 'Missing Alt Text', 'Images Missing Alt'] if c in df.columns), None)
+    if alt_col:
+        _run_check(issues, progress, 'missing_image_alt', 'Medium', idx[_num(idx, alt_col) > 0])
+    else:
+        _run_check(issues, progress, 'missing_image_alt', 'Medium', df.iloc[0:0])
+
+    # robots.txt Check
+    robots_rows = df[_str(df, 'Address').str.lower().str.endswith('/robots.txt') & (_num(df, 'Status Code') != 200)]
+    _run_check(issues, progress, 'missing_robots_txt', 'Medium', robots_rows)
+
+    # sitemap.xml Check
+    sitemap_rows = df[_str(df, 'Address').str.lower().str.endswith('/sitemap.xml') & (_num(df, 'Status Code') != 200)]
+    _run_check(issues, progress, 'missing_sitemap_xml', 'Medium', sitemap_rows)
+
+    # Canonical Mismatch Check
+    canon_col = next((c for c in ['Canonical Link Element 1', 'Canonical URL'] if c in df.columns), None)
+    if canon_col:
+        canon_vals = _str(idx, canon_col).str.strip()
+        addr_vals = _str(idx, 'Address').str.strip()
+        _run_check(issues, progress, 'canonical_mismatch', 'Medium', idx[(canon_vals != '') & (canon_vals != addr_vals)])
+    else:
+        _run_check(issues, progress, 'canonical_mismatch', 'Medium', df.iloc[0:0])
 
     _run_check(issues, progress, 'redirect', 'Medium', redirects)
 

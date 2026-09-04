@@ -1,2 +1,5 @@
+# Core data processing & deterministic SEO detectors
 pandas>=2.0.0
+
+# Model Context Protocol (MCP) server for Claude Code integration
 mcp>=1.0.0

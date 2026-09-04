@@ -183,8 +183,74 @@ body {
 }
 .btn-secondary:hover { background: var(--card2); border-color: var(--mute); }
 
+.btn-demo {
+  background: linear-gradient(135deg, #f5a623, #ff5c77);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.15s, opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 18px rgba(245,166,35,0.22);
+  font-family: inherit;
+}
+.btn-demo:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 22px rgba(245,166,35,0.35); }
+
+.landing-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.landing-clarity-badge {
+  background: rgba(39,201,126,0.10);
+  border: 1px solid rgba(39,201,126,0.3);
+  color: #69f0ae;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  margin: 18px auto 0;
+  max-width: 580px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.btn-deliverable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.15s;
+  font-family: inherit;
+}
+.btn-deliverable.primary {
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  color: #fff;
+}
+.btn-deliverable.secondary {
+  background: var(--card2);
+  color: var(--paper);
+  border: 1px solid var(--line);
+}
+.btn-deliverable:hover { opacity: 0.9; transform: translateY(-1px); }
+
 .landing-blocked-note {
-  margin-top: 24px;
+  margin-top: 14px;
   font-size: 12px;
   color: var(--mute);
   max-width: 560px;
@@ -623,7 +689,7 @@ tbody tr { transition: background 0.15s; }
   </h1>
 
   <p class="landing-sub">
-    Drop a website URL or upload a Screaming Frog CSV. Get 17 deterministic SEO checks, AI-powered title fixes, redirect maps, and a client-ready HTML report — all offline or cloud-hosted.
+    Drop a website URL or upload a Screaming Frog CSV. Get 21 deterministic SEO checks, AI-powered title fixes, redirect maps, and a client-ready HTML report — all offline or cloud-hosted.
   </p>
 
   <div class="landing-input-row">
@@ -633,20 +699,27 @@ tbody tr { transition: background 0.15s; }
 
   <div class="or-divider">or</div>
 
-  <label class="btn-secondary" style="cursor:pointer">
-    📁 Upload Screaming Frog CSV
-    <input type="file" id="landing-file" accept=".csv" style="display:none">
-  </label>
+  <div class="landing-action-group">
+    <button class="btn-demo" id="landing-demo-btn">⚡ Try Demo Audit (Instant)</button>
+    <label class="btn-secondary" style="cursor:pointer">
+      📁 Upload Screaming Frog CSV
+      <input type="file" id="landing-file" accept=".csv" style="display:none">
+    </label>
+  </div>
+
+  <div class="landing-clarity-badge">
+    <span>💡 <strong>High-Speed Crawler Built-In:</strong> No Screaming Frog required! Crawl live websites directly, or upload CSV if you have one.</span>
+  </div>
 
   <p class="landing-blocked-note">
-    ⚠️ <strong>Note:</strong> Sites protected by <strong>Cloudflare, Akamai, or Bot Shields</strong> (e.g. Amazon, Google, Instagram, Flipkart) will be blocked. Try <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">books.toscrape.com</code> or <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">quotes.toscrape.com</code> for a live demo.
+    ⚠️ <strong>Note:</strong> Sites protected by <strong>Cloudflare, Akamai, or Bot Shields</strong> (e.g. Amazon, Google, Instagram, Flipkart) will be blocked. Try <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px">books.toscrape.com</code> or click <strong>Try Demo Audit</strong> above.
   </p>
 
   <div class="landing-features">
     <div class="feature-card">
       <span class="icon">🔍</span>
-      <h3>17 SEO Detectors</h3>
-      <p>Pure Python/Pandas rules — zero AI hallucination. Detects broken links, duplicate titles, missing H1s and more.</p>
+      <h3>21 SEO Detectors</h3>
+      <p>Pure Python/Pandas rules — image alt text, robots.txt, sitemap.xml, canonical mismatch, broken links, duplicate titles & more.</p>
     </div>
     <div class="feature-card">
       <span class="icon">🤖</span>
@@ -656,7 +729,7 @@ tbody tr { transition: background 0.15s; }
     <div class="feature-card">
       <span class="icon">📄</span>
       <h3>Client Reports</h3>
-      <p>Auto-generates a professional HTML report + printable PDF deliverable in under 60 seconds.</p>
+      <p>Auto-generates a professional HTML report + printable deliverable in under 60 seconds.</p>
     </div>
   </div>
 
@@ -684,6 +757,7 @@ tbody tr { transition: background 0.15s; }
         <input type="text" id="url-input" placeholder="https://example.com">
         <button class="btn-sm" id="url-btn">🌐 Audit URL</button>
       </div>
+      <button class="upload-btn demo-btn" id="demo-btn" style="background:rgba(245,166,35,0.15);border-color:rgba(245,166,35,0.4);color:#ffd070">⚡ Try Demo</button>
       <label class="upload-btn green-btn">
         📁 Upload CSV
         <input type="file" id="file-input" accept=".csv" style="display:none">
@@ -708,8 +782,8 @@ tbody tr { transition: background 0.15s; }
         <svg class="gauge-svg" viewBox="0 0 160 160">
           <circle class="gauge-track" cx="80" cy="80" r="65"/>
           <circle class="gauge-fill" id="gauge-arc" cx="80" cy="80" r="65"/>
-          <text class="gauge-score-text" id="gauge-score" x="80" y="76">0</text>
-          <text class="gauge-label-text" x="80" y="96">Health Score</text>
+          <text class="gauge-score-text" id="gauge-score" x="80" y="76">--</text>
+          <text class="gauge-label-text" id="gauge-label" x="80" y="96">Ready</text>
         </svg>
         <div class="issue-counts">
           <div class="count-card total">
@@ -798,8 +872,15 @@ tbody tr { transition: background 0.15s; }
           <div id="log"><div class="empty">Pipeline steps stream here.</div></div>
         </div>
         <div class="card">
-          <div class="card-header"><span class="card-title">Deliverable</span></div>
-          <div id="export" class="empty">report.html will be ready when the run finishes.</div>
+          <div class="card-header"><span class="card-title">Deliverable & Exports</span></div>
+          <div id="export" style="display:flex;flex-direction:column;gap:10px">
+            <span class="empty" id="export-msg">Audit report will be generated when the run finishes.</span>
+            <div id="export-actions" style="display:none;flex-wrap:wrap;gap:8px;margin-top:4px">
+              <a href="/report.html" target="_blank" class="btn-deliverable primary">📄 Open HTML Report</a>
+              <a href="/report.json" download class="btn-deliverable secondary">📥 Download JSON</a>
+              <a href="/fixes.csv" download class="btn-deliverable secondary">📊 Title Fixes CSV</a>
+            </div>
+          </div>
         </div>
       </div>
 
