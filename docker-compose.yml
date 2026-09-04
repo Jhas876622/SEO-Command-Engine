@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  seo-command-center:
+    build: .
+    container_name: seo-command-center
+    ports:
+      - "7700:7700"
+    environment:
+      - SEO_PORT=7700
+      - RADAR_MODEL=qwen3.5:9b
+    volumes:
+      - ./outputs:/app/outputs
+      - ./history:/app/history
+      - ./uploads:/app/uploads
+    restart: unless-stopped
