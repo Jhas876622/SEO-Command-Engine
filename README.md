@@ -1,19 +1,20 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=venom&height=220&text=SEO%20Command%20Center&fontSize=62&color=0:020617,50:052e16,100:020617&fontColor=f0fdf4&stroke=22c55e&strokeWidth=3&animation=fadeIn&fontAlignY=50&desc=Autonomous%20Audit%20Engine%20%E2%80%A2%20Local%20AI%20%E2%80%A2%20Zero%20Cloud%20Dependencies&descSize=17&descAlignY=72&descFontColor=4ade80" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=venom&height=220&text=SEO%20Command%20Engine&fontSize=60&color=0:020617,50:052e16,100:020617&fontColor=f0fdf4&stroke=22c55e&strokeWidth=3&animation=fadeIn&fontAlignY=50&desc=Autonomous%20SEO%20Audit%20Engine%20%E2%80%A2%20Direct%20URL%20Crawler%20%E2%80%A2%20Local%20AI%20%E2%80%A2%20Docker%20Ready&descSize=16&descAlignY=72&descFontColor=4ade80" width="100%"/>
 
 <br/>
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![pandas](https://img.shields.io/badge/pandas-Detection%20Engine-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org)
-[![Ollama](https://img.shields.io/badge/Ollama-Local%20AI-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.ai)
-[![Offline](https://img.shields.io/badge/Runs-100%25%20Offline-22c55e?style=flat-square)](.)
+[![Ollama](https://img.shields.io/badge/Ollama-REST%20API%20%2B%20Local%20AI-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.ai)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](./Dockerfile)
+[![Tests](https://img.shields.io/badge/Tests-9%2F9%20Passing-22c55e?style=flat-square)](./tests)
 [![Speed](https://img.shields.io/badge/Audit%20Speed-Under%2060s-f59e0b?style=flat-square)](.)
 [![Rules](https://img.shields.io/badge/SEO%20Rules-17%20Detectors-8b5cf6?style=flat-square)](.)
 
 <br/>
 
-[**Live Demo**](#-live-audit-nmgtechnologiescom) · [**How It Works**](#-how-it-works) · [**Architecture**](#-architecture) · [**Quick Start**](#-quick-start) · [**Lessons Learned**](#-engineering-lessons)
+[**Live Cockpit**](#-quick-start) · [**Features**](#-key-features) · [**Architecture**](#-architecture) · [**Deployment**](#-cloud-deployment) · [**Outputs**](#-outputs)
 
 <br/>
 
@@ -21,21 +22,37 @@
 
 ## ✦ What This Is
 
-> **The Problem:** SEO audits are slow, manual, and expensive. Agencies charge thousands for what is essentially a repeatable checklist applied to crawl data.
+> **The Problem:** Technical SEO audits are slow, expensive, and manual. Agencies charge thousands for what is essentially a repeatable checklist applied to crawl data.
 
-SEO Command Center **automates the entire process** end-to-end. Drop in a Screaming Frog CSV export of any website, and the engine:
+**SEO Command Engine** is a high-performance, hybrid technical-SEO audit engine built with Python, Pandas, local AI (Ollama), Docker, and Server-Sent Events.
+
+You can audit any website by dropping in a **Screaming Frog CSV export** OR typing a **direct website URL** (`https://example.com`). The engine:
 
 - 🔍 Runs **17 deterministic SEO checks** via pure pandas — zero hallucination risk
+- 🌐 **Directly crawls live URLs** via a built-in lightweight async Python web crawler
 - ⚖️ **Prioritizes every issue** by business impact (HIGH / MEDIUM / LOW)
-- 🤖 Uses a **local AI model** to rewrite broken and over-length titles
+- 🤖 Uses a **local AI model** with self-healing pixel-width validation to rewrite broken titles
+- 🎛️ Features an **Interactive Browser Fix Editor** to modify AI titles inline & export custom CSVs
 - 🗺️ **Maps 404 pages** to the nearest live URL via string similarity
-- 📄 Generates a **client-ready HTML report** — all in under 60 seconds, fully offline
-
-No cloud. No API keys. No per-crawl fees. Just fast, accurate, repeatable audits.
+- 📄 Generates a **client-ready HTML report** & print PDF — all in under 60 seconds, 100% offline or cloud-hosted
 
 ---
 
-## 🔬 Live Audit: nmgtechnologies.com
+## ⚡ Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔍 **17 Deterministic Detectors** | High, Medium, and Low severity rules evaluated strictly in Python (0% LLM hallucination). |
+| 🌐 **Live Web Crawler** | Integrated `seo/crawler.py` module to crawl live domains directly from the web browser. |
+| 🤖 **Self-Healing LLM Loop** | Re-prompts Ollama up to 3 times if generated titles exceed search pixel limits (`<= 561px`), with fallback offline title formatting. |
+| 🎛️ **Interactive Fix Editor** | Edit AI-suggested title rewrites directly inside the dashboard and click **"Export Fixes CSV"**. |
+| 🔌 **Dual Interface** | Operates as an **MCP Server** for Claude Code / AI Agents AND as an interactive **Web Cockpit** (`http://localhost:7700`). |
+| 🐳 **Docker & Cloud Ready** | Includes `Dockerfile`, `docker-compose.yml`, and 1-click hosting setups for Render, Railway, and Fly.io. |
+| 🧪 **Automated Test Suite** | 9 unit tests covering detection rules, title validation, string similarity, and web crawling. |
+
+---
+
+## 🔬 Sample Audit Benchmark: nmgtechnologies.com
 
 *Validated on a real production digital marketing agency website.*
 
@@ -60,46 +77,37 @@ Health Score: 40 / 100  ⚠️ Needs Work
 | ⚪ **LOW** | Title Too Short | 21 |
 | ⚪ **LOW** | Thin Content | 10 |
 
-**Fixes auto-generated:**
-```
-✅  6 redirect mappings    →  404 broken URLs mapped to nearest live URLs
-✅  75 title rewrites      →  AI-generated, pixel-width validated, retry-looped
-```
-
 ---
 
 ## ⚡ How It Works
 
 ```
-INPUT: Screaming Frog CSV Export
-           │
-           ▼
-  ┌─────────────────┐
-  │  Stage 1: INGEST │  Load + normalize columns · report URL count
-  └────────┬────────┘
-           │
-           ▼
-  ┌──────────────────┐
-  │  Stage 2: DETECT  │  17 deterministic pandas rules · zero AI involvement
-  └────────┬─────────┘
-           │
-           ▼
-  ┌────────────────────────┐
-  │  Stage 3: PRIORITIZE   │  Score every issue HIGH / MEDIUM / LOW
-  └────────┬───────────────┘
-           │
-           ▼
-  ┌────────────────┐
-  │  Stage 4: FIX  │  AI rewrites bad titles + difflib maps 404 redirects
-  └────────┬───────┘
-           │
-           ▼
-  ┌──────────────────┐
-  │  Stage 5: DELIVER │  Dashboard + report.json + report.html + CSVs
-  └──────────────────┘
+ INPUT (Screaming Frog CSV  OR  Direct Website URL)
+                       │
+                       ▼
+ ┌───────────────────────────────────────────────────────────┐
+ │ STAGE 1: INGEST / CRAWL                                   │
+ │ Load CSV OR Crawl URL via async Python crawler           │
+ └─────────────────────┬─────────────────────────────────────┘
+                       │
+                       ▼
+ ┌───────────────────────────────────────────────────────────┐
+ │ STAGE 2: DETERMINISTIC DETECTION                          │
+ │ 17 pure-pandas rules · 0% hallucination risk              │
+ └─────────────────────┬─────────────────────────────────────┘
+                       │
+                       ▼
+ ┌───────────────────────────────────────────────────────────┐
+ │ STAGE 3: AI & ALGORITHMIC FIX ENGINE                      │
+ │ Ollama REST API title rewrites + difflib 404 redirect map │
+ └─────────────────────┬─────────────────────────────────────┘
+                       │
+                       ▼
+ ┌───────────────────────────────────────────────────────────┐
+ │ STAGE 4: INTERACTIVE DASHBOARD & DELIVERABLES             │
+ │ Live Cockpit + Editable Fix Table + report.html + CSVs    │
+ └───────────────────────────────────────────────────────────┘
 ```
-
-> **Core Design Principle:** The LLM is called **exactly twice** in the entire pipeline — once for title generation, once for redirect suggestions. Everything else is deterministic Python. This means the pipeline runs in under 60 seconds, never hits token limits, and produces consistent results on any site.
 
 ---
 
@@ -151,126 +159,47 @@ INPUT: Screaming Frog CSV Export
 ## 🏗️ Architecture
 
 ```
-seo-command-center/
+SEO-Command-Engine/
 │
-├── 📄  run.py                  ← Coordinator: orchestrates all agents
-├── 📋  SKILL.md                ← Claude Code orchestration instructions
+├── 📄  run.py                  ← CLI Orchestrator: runs full pipeline
+├── 📋  SKILL.md                ← Claude Code / Agent instructions
 │
 ├── 🤖  agents/
-│   ├── detector.py             ← 17 pure-pandas SEO detectors
-│   └── fixer.py                ← AI title rewriter + redirect map
+│   ├── detector.py             ← 17 pure-pandas SEO detectors (utf-8-sig normalized)
+│   └── fixer.py                ← Ollama REST API title rewriter + string-matching redirect map
+│
+├── 🌐  seo/
+│   ├── crawler.py              ← Lightweight async Python web crawler module
+│   └── detector.py             ← High-level detector wrapper
 │
 ├── 🔌  mcp/
-│   └── server.py               ← MCP server: SSE streaming + live dashboard
+│   └── server.py               ← Dual MCP Server + SSE Web Server (Upload / Crawl / History APIs)
 │
 ├── 🖥️  dashboard/
-│   ├── index.html              ← Live cockpit (Tailwind CSS)
-│   └── app.js                  ← Real-time SSE updates
+│   ├── index.html              ← Live cockpit dashboard with interactive fix editor
+│   └── app.js                  ← Real-time SSE updates & CSV export listeners
 │
-├── 📦  outputs/
-│   ├── report.json             ← Machine-readable results
-│   ├── report.html             ← Client-ready HTML report
-│   ├── fixes.csv               ← AI-generated title rewrites
-│   └── redirect_map.csv        ← 404 → live URL mappings
+├── 🧪  tests/
+│   ├── test_detector.py        ← Detector unit tests
+│   ├── test_fixer.py           ← Fixer & title pixel validation unit tests
+│   └── test_crawler.py         ← Crawler unit tests
 │
-└── 📈  history/                ← Trend tracking: one JSON per audit run
+├── 🐳  Dockerfile              ← Production container configuration
+├── 🐳  docker-compose.yml      ← 1-command service setup
+├── 📄  DEPLOYMENT.md           ← Cloud deployment guide (Render, Railway, Fly.io, localtunnel)
+│
+└── 📦  outputs/
+    ├── report.json             ← Schema-validated JSON audit report
+    ├── report.html             ← Standalone client HTML report
+    ├── fixes.csv               ← AI-generated title rewrites
+    └── redirect_map.csv        ← 404 → live URL mappings
 ```
-
----
-
-## 🧠 Key Engineering Features
-
-### 1 · Self-Healing Title Validation Loop
-
-Local AI models frequently generate over-length titles. This loop measures pixel width, rejects invalid output, and forces a re-prompt up to 3 times before falling back to graceful truncation.
-
-```python
-def generate_valid_title(url, max_retries=3):
-    for attempt in range(max_retries):
-        title = ask_ollama(f"Write SEO title for {url}. Under 60 chars.")
-        pixel_width = len(title) * 6  # estimate: 6px per char
-        if pixel_width <= 561 and len(title) > 10:
-            return title  # ✅ valid — ship it
-        # model gave a bad title — force re-prompt
-    return title[:57] + "..."  # last resort truncation
-```
-
-### 2 · Micro-Batching for 5× Speed
-
-```python
-# Send 5 URLs per prompt instead of 1-at-a-time
-# Falls back to one-by-one if JSON parsing fails
-prompt = "Write SEO titles for these 5 URLs. Return ONLY a JSON array."
-```
-
-### 3 · Pure-Python Redirect Mapping (No LLM)
-
-```python
-from difflib import get_close_matches
-
-matches = get_close_matches(broken_url, live_urls, n=1, cutoff=0.4)
-# /old-about-page  →  /about-us   (matched by string similarity)
-```
-
-### 4 · Column Resilience
-
-```python
-df = df.rename(columns=lambda x: x.strip())
-# Handles Screaming Frog exports where column names carry whitespace
-```
-
-### 5 · Graceful Offline Mode
-
-```bash
-python3 run.py sample-export/ --no-ollama
-# Full detection + report without any AI model
-# Title fixes fall back to URL-slug: /about-us → "About Us | Site"
-```
-
----
-
-## 💡 Engineering Lessons
-
-Three real mistakes from v1, and how they were fixed.
-
----
-
-**Mistake 1 — Coverage Over Precision**
-
-> v1 had 18 detectors. One of them — `missing_image_alt` — fired **279 times** on data that wasn't a real problem. This single false detector contaminated the entire report's credibility.
-
-**Fix:** Removed it. Raised the `slow_page` threshold from `>1.0s` to `>3.0s` after calibrating against real data. 17 accurate detectors beats 18 where one is broken.
-
-**Lesson:** *In data pipelines, one bad signal contaminates everything downstream. Measure precision before shipping.*
-
----
-
-**Mistake 2 — LLM in the Critical Path**
-
-> v1 blocked report generation until the AI title fixer completed. On large exports with retries, this meant 10+ minutes of silence. The report never appeared.
-
-**Fix:** Decoupled the pipeline. Report writes first. AI fixer runs after as an optional enhancement. The pipeline never blocks on AI availability.
-
-**Lesson:** *AI calls should be optional enhancements, never blocking dependencies.*
-
----
-
-**Mistake 3 — Relative Output Paths**
-
-> Early version wrote to `outputs/` relative to the current working directory. Running from a different folder broke everything — silently.
-
-**Fix:**
-```python
-OUTPUT_DIR = Path(__file__).parent / "outputs"
-```
-
-**Lesson:** *Always anchor paths to `__file__`, never to the working directory.*
 
 ---
 
 ## 🚀 Quick Start
 
-### Install
+### 1. Installation
 
 ```bash
 git clone https://github.com/Jhas876622/SEO-Command-Engine.git
@@ -278,49 +207,63 @@ cd SEO-Command-Engine
 pip install -r requirements.txt
 
 # Optional: Ollama for AI-powered title rewrites
-brew install ollama && ollama pull qwen3.5:9b
+ollama pull qwen3.5:9b
 ```
 
-### Run a Basic Audit
+### 2. Run via Live Dashboard
 
 ```bash
-python3 run.py path/to/screaming-frog-export/
-```
-
-### Run with Live Dashboard
-
-```bash
-# Terminal 1 — start the dashboard server
 python3 mcp/server.py
-
-# Terminal 2 — run the audit
-python3 run.py path/to/export/
-
-# Open http://localhost:7700 to watch in real-time
 ```
+Open **`http://localhost:7700`** in your browser:
+- Click **"📁 Upload CSV"** to upload a Screaming Frog export file, OR
+- Enter a domain URL in **`[ https://example.com ]`** and click **"🌐 Audit URL"** to crawl live!
 
-### Compare Two Sites
+### 3. Run via Command Line
 
 ```bash
-python3 run.py client-export/ competitor-export/
-```
+# Basic audit on a CSV export
+python3 run.py path/to/screaming-frog-export/
 
-### Fully Offline (No AI Model)
-
-```bash
+# Offline audit (no AI model required)
 python3 run.py path/to/export/ --no-ollama
+
+# Customize max fixes and redirects
+python3 run.py path/to/export/ --max-fixes 50 --max-redirects 100
+```
+
+### 4. Run Unit Tests
+
+```bash
+python3 -m unittest discover tests
 ```
 
 ---
 
-## 📤 Outputs
+## 🐳 Docker & Cloud Deployment
 
-Every audit run produces five files automatically:
+### Docker Compose
+```bash
+docker-compose up -d --build
+```
+Dashboard will be live at `http://localhost:7700`.
+
+### Deploy to Render.com (Free Tier)
+1. Push repository to GitHub.
+2. Create a new **Web Service** on Render.
+3. Select **Docker** environment.
+4. Set port `7700` and deploy!
+
+---
+
+## 📤 Outputs & Deliverables
+
+Every audit run automatically generates five structured files:
 
 | File | Description |
 |------|-------------|
 | `outputs/report.json` | Machine-readable results, schema-validated |
-| `outputs/report.html` | Client-ready HTML report with priority recommendations |
+| `outputs/report.html` | Client-ready standalone HTML report with priority recommendations |
 | `outputs/fixes.csv` | Before/after title rewrites with pixel-width validation |
 | `outputs/redirect_map.csv` | 404 → nearest live URL mappings |
 | `history/*.json` | Timestamped audit history for trend tracking |
@@ -331,26 +274,12 @@ Every audit run produces five files automatically:
 
 | Layer | Technology | Why |
 |-------|-----------|-----|
-| **Detection** | Python + pandas | Fast, deterministic, zero hallucination risk |
-| **AI Fixes** | Ollama (`qwen3.5:9b` / `gemma4:31b`) | Runs locally, no API costs |
-| **Dashboard** | SSE Streaming + Tailwind CSS | Real-time visibility as the audit runs |
-| **PDF Export** | WeasyPrint | Pixel-perfect client reports |
-| **Redirect Map** | `difflib` string similarity | More reliable than asking an LLM to guess |
-| **Reports** | JSON + HTML + CSV | Consumable by humans and machines |
-
----
-
-## 📊 vs. The Alternatives
-
-| | **SEO Command Center** | Agency Audit | SaaS Tools |
-|--|:---:|:---:|:---:|
-| Cost | Free | $2,000–5,000 | $100–500/mo |
-| Time | < 60s | 5–10 days | Hours |
-| Offline | ✅ | ❌ | ❌ |
-| Customizable | ✅ | ❌ | Limited |
-| AI Title Fixes | ✅ | Manual | ❌ |
-| 404 Redirect Map | ✅ | Manual | ❌ |
-| Exportable Reports | ✅ | PDF only | Limited |
+| **Detection** | Python + pandas | Fast, 100% deterministic, zero hallucination risk |
+| **Crawler** | Python standard library | Fast lightweight HTML parsing without heavy browser binaries |
+| **AI Fixes** | Ollama REST API (`qwen3.5:9b` / `gemma4:31b`) | Runs locally, zero API cost, self-healing loop |
+| **Dashboard** | SSE Streaming + Vanilla JS | Real-time visibility with zero build tool complexity |
+| **Redirect Map** | `difflib` string similarity | Reliable algorithmic URL string matching |
+| **Containerization** | Docker / Docker Compose | 1-click cloud deployment anywhere |
 
 ---
 
@@ -358,8 +287,8 @@ Every audit run produces five files automatically:
 
 ---
 
-**SEO Command Center** · Built by [Satyam Kumar Jha](https://github.com/Jhas876622) · 2026
+**SEO Command Engine** · Built by **[Satyam Kumar Jha](https://github.com/Jhas876622)** · 2026
 
-*Built to prove that the right architecture beats brute-forcing everything through an LLM.*
+*Built to prove that pragmatic architecture beats brute-forcing everything through an LLM.*
 
 </div>
