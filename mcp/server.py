@@ -21,7 +21,8 @@ ROOT = HERE.parent
 DASH_DIR = ROOT / "dashboard"
 OUTPUT_DIR = ROOT / "outputs"
 OUT_DIR = OUTPUT_DIR
-PORT = int(os.environ.get("SEO_PORT", "7700"))
+PORT = int(os.environ.get("PORT") or os.environ.get("SEO_PORT") or "7700")
+HOST = os.environ.get("HOST") or os.environ.get("SEO_HOST") or "0.0.0.0"
 MODEL = os.environ.get("RADAR_MODEL", "qwen3.5:9b")
 
 import sys
@@ -553,8 +554,12 @@ class H(BaseHTTPRequestHandler):
 
 
 # Start the local dashboard HTTP server in a background thread.
-def start_dashboard(port=PORT):
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), H)
+def start_dashboard(host=None, port=None):
+    if host is None:
+        host = HOST
+    if port is None:
+        port = PORT
+    httpd = ThreadingHTTPServer((host, port), H)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
 
@@ -564,7 +569,7 @@ def _run_mcp():
     try:
         from mcp.server.fastmcp import FastMCP
     except Exception:
-        print(f"[seo] MCP SDK not found. Dashboard only at http://localhost:{PORT}", flush=True)
+        print(f"[seo] MCP SDK not found. Dashboard live on {HOST}:{PORT}", flush=True)
         while True: time.sleep(3600)
     mcp = FastMCP("seo-command-center")
 
@@ -603,5 +608,5 @@ def _run_mcp():
 
 if __name__ == "__main__":
     start_dashboard()
-    print(f"[seo] dashboard live at http://localhost:{PORT}", flush=True)
+    print(f"[seo] dashboard live on {HOST}:{PORT}", flush=True)
     _run_mcp()
